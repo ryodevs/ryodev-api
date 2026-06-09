@@ -1,5 +1,6 @@
+// api/gemini.js
+
 export default async function handler(req, res) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
@@ -22,8 +23,10 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Gunakan model yang valid: gemini-1.5-flash atau gemini-1.5-pro
+    const model = 'gemini-1.5-flash'; // ubah ke 'gemini-1.5-pro' jika ingin lebih besar
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
