@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ status: 400, creator: 'RyodevAPI', error: 'Parameter "text" is required' });
   }
 
-  const apiKey = AQ.Ab8RN6JBr5brrWQWiYbxGPwtkipkbvWyf6DFEb5GoJ6n2tGGdw;
+  const apiKey = process.env.AQ.Ab8RN6JBr5brrWQWiYbxGPwtkipkbvWyf6DFEb5GoJ6n2tGGdw; // ← perbaikan di sini
   if (!apiKey) {
     return res.status(500).json({ status: 500, creator: 'RyodevAPI', error: 'Server not configured' });
   }
