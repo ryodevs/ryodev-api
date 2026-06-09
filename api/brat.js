@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     <text
       x="250" y="${startY + i * lineHeight}"
       text-anchor="middle" dominant-baseline="middle"
-      font-family="Arial, Helvetica, sans-serif"
+      font-family="DejaVu Sans, Liberation Sans, FreeSans, sans-serif"
       font-weight="300" font-size="${fontSize}"
       fill="black" filter="url(#brat-blur)"
     >${line}</text>
@@ -45,13 +45,14 @@ export default async function handler(req, res) {
   </svg>`);
 
   try {
-    const png = await sharp(svg).png().toBuffer();
+    const png = await sharp(svg)
+      .png()
+      .toBuffer();
+
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 'public, max-age=86400');
     res.send(png);
-  } catch {
-    // fallback ke SVG kalau sharp gagal
-    res.setHeader('Content-Type', 'image/svg+xml');
-    res.send(svg);
+  } catch (err) {
+    res.status(500).json({ status: 500, creator: 'RyodevAPI', error: err.message });
   }
 }
