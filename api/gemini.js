@@ -1,9 +1,21 @@
 // api/gemini.js
 
 export default async function handler(req, res) {
+  // CORS agar bisa diakses dari frontend manapun
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
 
+  // Tangani preflight request (OPTIONS)
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  // Hanya izinkan GET (atau bisa juga POST sesuai kebutuhan)
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Ambil prompt dari query parameter "text"
   const { text } = req.query;
   if (!text) {
     return res.status(400).json({
@@ -18,38 +30,49 @@ export default async function handler(req, res) {
     return res.status(500).json({
       status: 500,
       creator: 'RyodevAPI',
-      error: 'Server not configured: missing API key'
+      error: 'Server not configured: missing GEMINI_API_KEY environment variable'
     });
   }
 
   try {
-    // Model ID yang benar untuk Gemini 3.5 Flash
-    const model = 'gemini-3.5-flash'; // ✅
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text }] }]
-        })
-      }
-    );
+    // Model: gemini-3.5-flash (contoh dari curl user)
+    const model = 'gemini-3.5-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || `HTTP ${response.status}`);
-    }
+    const requestBody = {
+      contents: [
+        {
+          parts: [{ text }]
+        }
+      ]
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
+      },
+      body: JSON.stringify(requestBody)
+    });
 
     const data = await response.json();
-    const result = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response';
+
+    if (!response.ok) {
+      const errorMessage = data.error?.message || `HTTP ${response.status}`;
+      throw new Error(errorMessage);
+    }
+
+    const result = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response from Gemini';
 
     return res.status(200).json({
       status: 200,
       creator: 'RyodevAPI',
-      result
+      model: model,
+      result: result
     });
   } catch (err) {
+    console.error('Gemini API error:', err);
     return res.status(500).json({
       status: 500,
       creator: 'RyodevAPI',
