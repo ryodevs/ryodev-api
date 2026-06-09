@@ -1,4 +1,6 @@
-export default function handler(req, res) {
+import sharp from 'sharp';
+
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
@@ -22,30 +24,34 @@ export default function handler(req, res) {
   const totalHeight = lines.length * lineHeight;
   const startY = 250 - totalHeight / 2 + lineHeight / 2;
 
-  const textElements = lines
-    .map(
-      (line, i) => `
+  const textElements = lines.map((line, i) => `
     <text
       x="250" y="${startY + i * lineHeight}"
       text-anchor="middle" dominant-baseline="middle"
       font-family="Arial, Helvetica, sans-serif"
       font-weight="300" font-size="${fontSize}"
       fill="black" filter="url(#brat-blur)"
-    >${line}</text>`
-    )
-    .join('');
+    >${line}</text>
+  `).join('');
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500">
-  <rect width="500" height="500" fill="white"/>
-  <defs>
-    <filter id="brat-blur" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="1.2"/>
-    </filter>
-  </defs>
-  ${textElements}
-</svg>`;
+  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500">
+    <rect width="500" height="500" fill="white"/>
+    <defs>
+      <filter id="brat-blur" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="1.2"/>
+      </filter>
+    </defs>
+    ${textElements}
+  </svg>`);
 
-  res.setHeader('Content-Type', 'image/svg+xml');
-  res.setHeader('Cache-Control', 'public, max-age=86400');
-  res.send(svg);
+  try {
+    const png = await sharp(svg).png().toBuffer();
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(png);
+  } catch {
+    // fallback ke SVG kalau sharp gagal
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.send(svg);
+  }
 }
