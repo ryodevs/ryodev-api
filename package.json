@@ -8,7 +8,6 @@
     "helmet": "^7.1.0",
     "axios": "^1.7.2",
     "cheerio": "^1.0.0-rc.12",
-    "@napi-rs/canvas": "^0.1.58",
     "dotenv": "^16.4.5",
     "morgan": "^1.10.0",
     "cookie-parser": "^1.4.6",
