@@ -1,5 +1,3 @@
-import sharp from 'sharp';
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
@@ -28,31 +26,26 @@ export default async function handler(req, res) {
     <text
       x="250" y="${startY + i * lineHeight}"
       text-anchor="middle" dominant-baseline="middle"
-      font-family="DejaVu Sans, Liberation Sans, FreeSans, sans-serif"
+      font-family="'Inter', sans-serif"
       font-weight="300" font-size="${fontSize}"
       fill="black" filter="url(#brat-blur)"
     >${line}</text>
   `).join('');
 
-  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500">
-    <rect width="500" height="500" fill="white"/>
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="500" height="500">
     <defs>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300&amp;display=swap');
+      </style>
       <filter id="brat-blur" x="-20%" y="-20%" width="140%" height="140%">
         <feGaussianBlur stdDeviation="1.2"/>
       </filter>
     </defs>
+    <rect width="500" height="500" fill="white"/>
     ${textElements}
-  </svg>`);
+  </svg>`;
 
-  try {
-    const png = await sharp(svg)
-      .png()
-      .toBuffer();
-
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.send(png);
-  } catch (err) {
-    res.status(500).json({ status: 500, creator: 'RyodevAPI', error: err.message });
-  }
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.send(svg);
 }
