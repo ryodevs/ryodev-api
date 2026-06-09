@@ -23,8 +23,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Gunakan model yang paling kompatibel: gemini-pro
-    const model = 'gemini-pro';
+    // Model ID yang benar untuk Gemini 3.5 Flash
+    const model = 'gemini-3.5-flash'; // ✅
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
