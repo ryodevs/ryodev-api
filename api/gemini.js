@@ -1,21 +1,12 @@
 // api/gemini.js
 
 export default async function handler(req, res) {
-  // CORS agar bisa diakses dari frontend manapun
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
 
-  // Tangani preflight request (OPTIONS)
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Hanya izinkan GET (atau bisa juga POST sesuai kebutuhan)
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  // Ambil prompt dari query parameter "text"
   const { text } = req.query;
   if (!text) {
     return res.status(400).json({
@@ -30,53 +21,62 @@ export default async function handler(req, res) {
     return res.status(500).json({
       status: 500,
       creator: 'RyodevAPI',
-      error: 'Server not configured: missing GEMINI_API_KEY environment variable'
+      error: 'Server not configured: missing GEMINI_API_KEY'
     });
   }
 
-  try {
-    // Model: gemini-3.5-flash (contoh dari curl user)
-    const model = 'gemini-3.5-flash';
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  // Daftar model yang dicoba secara berurutan
+  const models = ['gemini-3.5-flash', 'gemini-1.5-flash', 'gemini-pro'];
+  let lastError = null;
 
-    const requestBody = {
-      contents: [
+  for (const model of models) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         {
-          parts: [{ text }]
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey
+          },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text }] }]
+          })
         }
-      ]
-    };
+      );
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
-      },
-      body: JSON.stringify(requestBody)
-    });
+      const data = await response.json();
 
-    const data = await response.json();
+      if (response.ok) {
+        const result = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response';
+        return res.status(200).json({
+          status: 200,
+          creator: 'RyodevAPI',
+          model_used: model,
+          result
+        });
+      }
 
-    if (!response.ok) {
-      const errorMessage = data.error?.message || `HTTP ${response.status}`;
-      throw new Error(errorMessage);
+      // Tangani error khusus high demand atau model not found
+      const errorMsg = data.error?.message || '';
+      if (errorMsg.includes('high demand') || errorMsg.includes('not found')) {
+        lastError = errorMsg;
+        continue; // coba model berikutnya
+      } else {
+        // Error lain langsung stop
+        throw new Error(errorMsg);
+      }
+    } catch (err) {
+      lastError = err.message;
+      // Jika error jaringan atau lainnya, lanjut coba model lain
+      continue;
     }
-
-    const result = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response from Gemini';
-
-    return res.status(200).json({
-      status: 200,
-      creator: 'RyodevAPI',
-      model: model,
-      result: result
-    });
-  } catch (err) {
-    console.error('Gemini API error:', err);
-    return res.status(500).json({
-      status: 500,
-      creator: 'RyodevAPI',
-      error: err.message
-    });
   }
+
+  // Jika semua model gagal
+  return res.status(500).json({
+    status: 500,
+    creator: 'RyodevAPI',
+    error: `All models failed. Last error: ${lastError}`
+  });
 }
