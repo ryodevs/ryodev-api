@@ -2,5 +2,8 @@
   "name": "ryodev-api",
   "version": "1.0.0",
   "description": "RyodevAPI Backend",
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "sharp": "^0.33.4"
+  }
 }
