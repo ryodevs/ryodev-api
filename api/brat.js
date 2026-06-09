@@ -1,51 +1,54 @@
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
 
   const text = req.query.text || 'brat';
+  
+  // Membersihkan teks untuk mencegah error XML
   const escaped = text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
+  // Logika font size otomatis berdasarkan panjang teks
   const len = escaped.length;
-  const fontSize = len > 30 ? 48 : len > 20 ? 62 : len > 10 ? 78 : 96;
+  const fontSize = len > 50 ? 40 : len > 30 ? 60 : len > 15 ? 80 : 100;
 
-  const words = escaped.split(' ');
-  const maxPerLine = words.length > 3 ? Math.ceil(words.length / 2) : words.length;
-  const lines = [];
-  for (let i = 0; i < words.length; i += maxPerLine) {
-    lines.push(words.slice(i, i + maxPerLine).join(' '));
-  }
-
-  const lineHeight = fontSize * 1.25;
-  const totalHeight = lines.length * lineHeight;
-  const startY = 250 - totalHeight / 2 + lineHeight / 2;
-
-  const textElements = lines.map((line, i) => `
-    <text
-      x="250" y="${startY + i * lineHeight}"
-      text-anchor="middle" dominant-baseline="middle"
-      font-family="'Inter', sans-serif"
-      font-weight="300" font-size="${fontSize}"
-      fill="black" filter="url(#brat-blur)"
-    >${line}</text>
-  `).join('');
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="500" height="500">
+  // Menggunakan foreignObject agar teks bisa wrap otomatis via CSS
+  const svg = `
+  <svg xmlns="http://www.w3.org/2000/svg" width="500" height="500">
     <defs>
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300&amp;display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400&amp;display=swap');
       </style>
-      <filter id="brat-blur" x="-20%" y="-20%" width="140%" height="140%">
-        <feGaussianBlur stdDeviation="1.2"/>
-      </filter>
     </defs>
-    <rect width="500" height="500" fill="white"/>
-    ${textElements}
+    <rect width="100%" height="100%" fill="white"/>
+    <foreignObject x="0" y="0" width="500" height="500">
+      <div xmlns="http://www.w3.org/1999/xhtml" style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        padding: 40px;
+        box-sizing: border-box;
+        text-align: center;
+        font-family: 'Inter', sans-serif;
+        font-weight: 400;
+        font-size: ${fontSize}px;
+        line-height: 1.1;
+        color: black;
+        filter: blur(1.5px);
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: pre-wrap;
+      ">
+        ${escaped}
+      </div>
+    </foreignObject>
   </svg>`;
 
-  res.setHeader('Content-Type', 'image/svg+xml');
-  res.setHeader('Cache-Control', 'public, max-age=86400');
   res.send(svg);
 }
