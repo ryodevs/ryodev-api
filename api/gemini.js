@@ -23,8 +23,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Gunakan model yang valid: gemini-1.5-flash atau gemini-1.5-pro
-    const model = 'gemini-1.5-flash'; // ubah ke 'gemini-1.5-pro' jika ingin lebih besar
+    // Gunakan model yang paling kompatibel: gemini-pro
+    const model = 'gemini-pro';
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
