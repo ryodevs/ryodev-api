@@ -12,26 +12,22 @@ export default async function handler(req, res) {
   const PADDING = 40;
   const MAX_WIDTH = SIZE - PADDING * 2;
 
-  // Split kata jadi baris berdasarkan panjang karakter estimasi
-  const words = escaped.split(' ');
-  const lines = [];
-  let current = '';
-
-  // Estimasi lebar per karakter relatif terhadap fontSize
-  // Kita cari fontSize yang pas dulu, lalu wrap
   function estimateWidth(str, fs) {
-    return str.length * fs * 0.55; // estimasi avg char width = 55% fontSize
+    return str.length * fs * 0.55;
   }
 
-  // Cari fontSize maksimum yang muat untuk kata terpanjang
+  const words = escaped.split(' ');
   let fontSize = 96;
+
+  // Scale down kalau kata terpanjang masih kepotong
   const longestWord = words.reduce((a, b) => a.length > b.length ? a : b, '');
-  while (fontSize > 20 && estimateWidth(longestWord, fontSize) > MAX_WIDTH) {
+  while (fontSize > 16 && estimateWidth(longestWord, fontSize) > MAX_WIDTH) {
     fontSize -= 2;
   }
 
-  // Wrap teks ke beberapa baris
-  current = '';
+  // Wrap ke baris
+  const lines = [];
+  let current = '';
   for (const word of words) {
     const test = current ? current + ' ' + word : word;
     if (estimateWidth(test, fontSize) > MAX_WIDTH && current) {
@@ -43,22 +39,20 @@ export default async function handler(req, res) {
   }
   if (current) lines.push(current);
 
-  // Kalau masih ada baris yang kepanjangan (kata tunggal panjang), scale down
-  for (const line of lines) {
-    while (fontSize > 16 && estimateWidth(line, fontSize) > MAX_WIDTH) {
-      fontSize -= 2;
-    }
-  }
-
+  const multiLine = lines.length > 1;
   const lineHeight = fontSize * 1.25;
   const totalTextHeight = lines.length * lineHeight;
   const startY = SIZE / 2 - totalTextHeight / 2 + lineHeight / 2;
 
+  // Single line = tengah, multi line = rata kiri
+  const textX = multiLine ? PADDING : SIZE / 2;
+  const textAnchor = multiLine ? 'start' : 'middle';
+
   const textElements = lines.map((line, i) => `
     <text
-      x="${SIZE / 2}"
+      x="${textX}"
       y="${startY + i * lineHeight}"
-      text-anchor="middle"
+      text-anchor="${textAnchor}"
       dominant-baseline="middle"
       font-family="'Inter', sans-serif"
       font-weight="400"
@@ -80,9 +74,7 @@ export default async function handler(req, res) {
   </svg>`;
 
   const base64 = Buffer.from(svg).toString('base64');
-  const dataUrl = `data:image/svg+xml;base64,${base64}`;
-
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'public, max-age=86400');
-  res.json({ status: 200, creator: 'RyodevAPI', result: dataUrl });
+  res.json({ status: 200, creator: 'RyodevAPI', result: `data:image/svg+xml;base64,${base64}` });
 }
