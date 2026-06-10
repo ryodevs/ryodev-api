@@ -11,40 +11,46 @@ export default async function handler(req, res) {
   const SIZE = 500;
   const PADDING = 40;
   const MAX_WIDTH = SIZE - PADDING * 2;
+  const MAX_HEIGHT = SIZE - PADDING * 2;
 
   function estimateWidth(str, fs) {
     return str.length * fs * 0.55;
   }
 
+  function wrapText(words, fs) {
+    const lines = [];
+    let current = '';
+    for (const word of words) {
+      const test = current ? current + ' ' + word : word;
+      if (estimateWidth(test, fs) > MAX_WIDTH && current) {
+        lines.push(current);
+        current = word;
+      } else {
+        current = test;
+      }
+    }
+    if (current) lines.push(current);
+    return lines;
+  }
+
   const words = escaped.split(' ');
   let fontSize = 96;
 
-  // Scale down kalau kata terpanjang masih kepotong
-  const longestWord = words.reduce((a, b) => a.length > b.length ? a : b, '');
-  while (fontSize > 16 && estimateWidth(longestWord, fontSize) > MAX_WIDTH) {
+  // Turunkan fontSize sampai semua teks muat horizontal DAN vertikal
+  let lines = [];
+  while (fontSize > 16) {
+    lines = wrapText(words, fontSize);
+    const totalHeight = lines.length * fontSize * 1.25;
+    const maxLineWidth = Math.max(...lines.map(l => estimateWidth(l, fontSize)));
+    if (totalHeight <= MAX_HEIGHT && maxLineWidth <= MAX_WIDTH) break;
     fontSize -= 2;
   }
-
-  // Wrap ke baris
-  const lines = [];
-  let current = '';
-  for (const word of words) {
-    const test = current ? current + ' ' + word : word;
-    if (estimateWidth(test, fontSize) > MAX_WIDTH && current) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = test;
-    }
-  }
-  if (current) lines.push(current);
 
   const multiLine = lines.length > 1;
   const lineHeight = fontSize * 1.25;
   const totalTextHeight = lines.length * lineHeight;
   const startY = SIZE / 2 - totalTextHeight / 2 + lineHeight / 2;
 
-  // Single line = tengah, multi line = rata kiri
   const textX = multiLine ? PADDING : SIZE / 2;
   const textAnchor = multiLine ? 'start' : 'middle';
 
