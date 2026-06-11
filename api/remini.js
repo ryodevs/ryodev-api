@@ -257,14 +257,7 @@ async function processRemini(imageUrl) {
 
   if (!taskResult) return null;
 
-  // Hapus watermark kalau ada
-  if (hasWatermark) {
-    try {
-      const noWm = await removeWatermark(taskResult.url);
-      if (noWm) return noWm;
-    } catch (_) {}
-  }
-
+  // Skip watermark removal — langsung return URL Remini
   return taskResult.url;
 }
 
