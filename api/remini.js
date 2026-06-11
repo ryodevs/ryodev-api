@@ -337,16 +337,22 @@ export default async function handler(req, res) {
       return res.status(500).json({ status: 500, creator: 'RyodevAPI', error: 'Processing failed or timed out' });
     }
 
-    // Proxy gambar hasilnya biar bisa ditampilkan di browser (hindari hotlink block)
+    // Proxy gambar hasilnya biar bisa ditampilkan di browser
     try {
-      const imgRes = await fetch(result, { headers: { 'User-Agent': getUserAgent(), 'Referer': 'https://app.remini.ai/' } });
-      const buffer = Buffer.from(await imgRes.arrayBuffer());
-      const base64 = buffer.toString('base64');
-      const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
-      return res.status(200).json({ status: 200, creator: 'RyodevAPI', result: `data:${contentType};base64,${base64}` });
-    } catch {
-      return res.status(200).json({ status: 200, creator: 'RyodevAPI', result });
-    }
+      const imgRes = await fetch(result, {
+        headers: { 'User-Agent': getUserAgent(), 'Referer': 'https://app.remini.ai/' },
+        redirect: 'follow',
+      });
+      const contentType = imgRes.headers.get('content-type') || '';
+      if (contentType.includes('image')) {
+        const buffer = Buffer.from(await imgRes.arrayBuffer());
+        const base64 = buffer.toString('base64');
+        return res.status(200).json({ status: 200, creator: 'RyodevAPI', result: `data:${contentType};base64,${base64}` });
+      }
+    } catch (_) {}
+
+    // Fallback: return URL langsung
+    return res.status(200).json({ status: 200, creator: 'RyodevAPI', result });
   } catch (err) {
     return res.status(500).json({ status: 500, creator: 'RyodevAPI', error: err.message });
   }
