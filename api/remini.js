@@ -240,7 +240,8 @@ async function processRemini(imageUrl) {
   });
 
   // Poll for result (max 60s)
-  let result = null;
+  let taskResult = null;
+  let hasWatermark = false;
   for (let i = 0; i < 30; i++) {
     await delay(2000);
     const taskRes = await fetch(BASE_URL + URL_TASK + uploadData.bulk_upload_id, {
@@ -248,12 +249,75 @@ async function processRemini(imageUrl) {
     });
     const taskData = await taskRes.json();
     if (taskData.task_list[0].status === "completed") {
-      result = taskData.task_list[0].result.outputs[0].url;
+      taskResult = taskData.task_list[0].result.outputs[0];
+      hasWatermark = taskResult.has_watermark;
       break;
     }
   }
 
-  return result;
+  if (!taskResult) return null;
+
+  // Hapus watermark kalau ada
+  if (hasWatermark) {
+    try {
+      const noWm = await removeWatermark(taskResult.url);
+      if (noWm) return noWm;
+    } catch (_) {}
+  }
+
+  return taskResult.url;
+}
+
+async function removeWatermark(imageUrl) {
+  const uri = new URL(URL_SECRET);
+  const iso = new Date().toISOString();
+  const params = Buffer.from(iso).toString("base64");
+
+  // Generate visitor ID buat signature
+  const visitorId = crypto.randomBytes(16).toString("hex");
+  const hm = `POST${encodeURI(uri.pathname + uri.search)}${iso}${visitorId}`;
+  const sig = crypto.createHmac("sha256", SIGN_KEY).update(hm).digest("hex");
+
+  const wmHeaders = {
+    "accept": "application/json, text/plain, */*",
+    "accept-language": "id-ID,id;q=0.9,en-US;q=0.8",
+    "origin": "https://www.watermarkremover.io",
+    "referer": "https://www.watermarkremover.io/",
+    "user-agent": getUserAgent(),
+    "x-ebg-param": params,
+    "x-ebg-signature": sig,
+    "pixb-cl-id": visitorId,
+  };
+
+  // Fetch image
+  const imgRes = await fetch(imageUrl, { headers: { "user-agent": getUserAgent() } });
+  const buffer = Buffer.from(await imgRes.arrayBuffer());
+
+  const form = new FormData();
+  form.append("input.image", buffer, { filename: `${crypto.randomUUID()}.jpg`, contentType: "image/jpeg" });
+  form.append("input.rem_text", "false");
+  form.append("input.rem_logo", "false");
+  form.append("retention", "1d");
+
+  const uploadRes = await fetch("https://api.watermarkremover.io" + URL_REMOVE_WM, {
+    method: "POST",
+    headers: { ...wmHeaders, ...form.getHeaders() },
+    body: form.getBuffer(),
+  });
+
+  const json = await uploadRes.json();
+  if (!json?.urls?.get) return null;
+
+  // Poll result
+  const pollHeaders = { origin: "https://www.watermarkremover.io", referer: json.urls.get, "user-agent": getUserAgent() };
+  for (let i = 0; i < 20; i++) {
+    await delay(3000);
+    const pollRes = await fetch(json.urls.get, { headers: pollHeaders });
+    const pollData = await pollRes.json();
+    if (pollData?.status === "SUCCESS") return pollData.output?.[0] || null;
+  }
+
+  return null;
 }
 
 export default async function handler(req, res) {
