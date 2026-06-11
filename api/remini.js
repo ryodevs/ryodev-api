@@ -257,7 +257,26 @@ async function processRemini(imageUrl) {
 
   if (!taskResult) return null;
 
-  // Skip watermark removal — langsung return URL Remini
+  // Hapus watermark kalau ada, lalu upload ke tmpfiles biar bisa diakses
+  if (hasWatermark) {
+    try {
+      const noWmUrl = await removeWatermark(taskResult.url);
+      if (noWmUrl) {
+        // Upload hasil no-watermark ke tmpfiles biar tidak kena hotlink block
+        const imgRes = await fetch(noWmUrl, { headers: { 'User-Agent': getUserAgent() }, redirect: 'follow' });
+        const buffer = Buffer.from(await imgRes.arrayBuffer());
+        const fd = new FormData();
+        fd.append('file', buffer, { filename: 'result.jpg', contentType: 'image/jpeg' });
+        const uploadRes = await fetch('https://tmpfiles.org/api/v1/upload', { method: 'POST', headers: fd.getHeaders(), body: fd.getBuffer() });
+        const uploadJson = await uploadRes.json();
+        if (uploadJson?.data?.url) {
+          return uploadJson.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+        }
+        return noWmUrl;
+      }
+    } catch (_) {}
+  }
+
   return taskResult.url;
 }
 
