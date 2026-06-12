@@ -328,24 +328,45 @@ async function removeWatermark(imageUrl) {
   return null;
 }
 
+export const config = { api: { bodyParser: false } };
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const url = req.query.url;
-  if (!url) {
-    return res.status(400).json({ status: 400, creator: 'RyodevAPI', error: 'Parameter "url" is required' });
-  }
+  let imageBuffer = null;
 
   try {
+    if (req.method === 'POST') {
+      const { IncomingForm } = await import('formidable');
+      const { default: fs } = await import('fs');
+      const form = new IncomingForm({ maxFileSize: 10 * 1024 * 1024 });
+      const { files } = await new Promise((resolve, reject) => {
+        form.parse(req, (err, fields, files) => {
+          if (err) reject(err);
+          else resolve({ fields, files });
+        });
+      });
+      const file = Array.isArray(files.file) ? files.file[0] : files.file;
+      if (!file) return res.status(400).json({ status: 400, creator: 'RyodevAPI', error: 'No file uploaded' });
+      imageBuffer = fs.readFileSync(file.filepath);
+    } else if (req.method === 'GET') {
+      const url = req.query.url;
+      if (!url) return res.status(400).json({ status: 400, creator: 'RyodevAPI', error: 'Parameter "url" is required' });
+      const imgRes = await fetch(url, { headers: { 'User-Agent': getUserAgent() } });
+      imageBuffer = Buffer.from(await imgRes.arrayBuffer());
+    } else {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
     const result = await processRemini(imageBuffer);
     if (!result) {
       return res.status(500).json({ status: 500, creator: 'RyodevAPI', error: 'Processing failed or timed out' });
     }
 
-    // Proxy gambar hasilnya biar bisa ditampilkan di browser
+    // Proxy gambar hasilnya
     try {
       const imgRes = await fetch(result, {
         headers: { 'User-Agent': getUserAgent(), 'Referer': 'https://app.remini.ai/' },
@@ -359,7 +380,6 @@ export default async function handler(req, res) {
       }
     } catch (_) {}
 
-    // Fallback: return URL langsung
     return res.status(200).json({ status: 200, creator: 'RyodevAPI', result });
   } catch (err) {
     return res.status(500).json({ status: 500, creator: 'RyodevAPI', error: err.message });
