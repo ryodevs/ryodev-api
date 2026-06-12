@@ -15,8 +15,8 @@ export default async function handler(req, res) {
   const PADDING = 32;
   const MAX_WIDTH = SIZE - PADDING * 2;
   const MAX_HEIGHT = SIZE - PADDING * 2;
-  const BLUR = 2.4;
-  const LINE_HEIGHT = 0.9;
+  const BLUR = 1.8;
+  
 
   function estimateWidth(str, fs) {
     return str.length * fs * 0.44;
