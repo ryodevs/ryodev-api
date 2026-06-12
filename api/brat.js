@@ -11,7 +11,8 @@ export default async function handler(req, res) {
   const text = (url.searchParams.get('text') || 'brat').toLowerCase();
   const bgColorParam = url.searchParams.get('bgcolor') || 'white';
   
-  let bgColorHex = '#FFFFFF';
+  // Mapping background color
+  let bgColorHex = '#FFFFFF'; // white default
   if (bgColorParam === 'pink') bgColorHex = '#FDB9E9';
   if (bgColorParam === 'green') bgColorHex = '#8ACE00';
 
@@ -79,8 +80,8 @@ export default async function handler(req, res) {
           height: CANVAS_SIZE,
           background: bgColorHex,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: multiLine ? 'flex-start' : 'center',
+          justifyContent: multiLine ? 'flex-start' : 'center',
           padding: `${BLUR_EXTRA}px`,
           filter: `blur(${BLUR}px)`,
         },
