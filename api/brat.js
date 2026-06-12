@@ -65,10 +65,38 @@ export default async function handler(req, res) {
     return lines;
   }
 
+  // Fungsi justify manual dengan nambah spasi
+  function justifyText(line, targetWidth, fs, charWidth = 0.48) {
+    const words = line.split(' ');
+    if (words.length <= 1) return line;
+    
+    // Hitung lebar total tanpa spasi tambahan
+    const lineWithoutSpaces = words.join('');
+    const currentWidth = lineWithoutSpaces.length * fs * charWidth;
+    const gapNeeded = targetWidth - currentWidth;
+    const spaceCount = words.length - 1;
+    
+    // Tambah spasi per celah (minimal 1 spasi)
+    let spacesPerGap = Math.floor(gapNeeded / (fs * charWidth));
+    spacesPerGap = Math.max(1, spacesPerGap);
+    
+    // Bangun line dengan spasi tambahan
+    let justified = words[0];
+    for (let i = 1; i < words.length; i++) {
+      justified += ' '.repeat(spacesPerGap) + words[i];
+    }
+    return justified;
+  }
+
   const words = text.split(' ');
   let fontSize = findBestFontSize(words, 16, 160);
   let lines = wrapText(words, fontSize);
   const multiLine = lines.length > 1;
+
+  // Apply justify ke setiap line kalo multi line
+  const finalLines = multiLine 
+    ? lines.map(line => justifyText(line, MAX_WIDTH, fontSize, 0.48))
+    : lines;
 
   const imageResponse = new ImageResponse(
     {
@@ -90,13 +118,13 @@ export default async function handler(req, res) {
             style: {
               display: 'flex',
               flexDirection: 'column',
-              alignItems: multiLine ? 'stretch' : 'center',
+              alignItems: multiLine ? 'flex-start' : 'center',
               justifyContent: 'center',
               width: '100%',
               height: '100%',
               padding: multiLine ? `${PADDING}px` : '0',
             },
-            children: lines.map((line, i) => ({
+            children: finalLines.map((line, i) => ({
               type: 'div',
               props: {
                 key: String(i),
@@ -106,8 +134,8 @@ export default async function handler(req, res) {
                   fontFamily: '"Arial Narrow"',
                   color: 'black',
                   lineHeight: LINE_HEIGHT,
-                  whiteSpace: multiLine ? 'normal' : 'nowrap',
-                  textAlign: multiLine ? 'justify' : 'center',
+                  whiteSpace: 'pre',
+                  textAlign: 'left',
                   width: '100%',
                 },
                 children: line,
