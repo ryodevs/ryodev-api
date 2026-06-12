@@ -64,7 +64,6 @@ export default async function handler(req, res) {
   let fontSize = findBestFontSize(words, 16, 160);
   let lines = wrapText(words, fontSize);
   const multiLine = lines.length > 1;
-  const anchor = multiLine ? 'flex-start' : 'center';
 
   const imageResponse = new ImageResponse(
     {
@@ -75,9 +74,9 @@ export default async function handler(req, res) {
           height: CANVAS_SIZE,
           background: 'white',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: anchor === 'center' ? 'center' : 'flex-start',
-          padding: multiLine ? `${PADDING + BLUR_EXTRA}px` : `${BLUR_EXTRA}px`,
+          alignItems: multiLine ? 'flex-start' : 'center',
+          justifyContent: multiLine ? 'flex-start' : 'center',
+          padding: `${BLUR_EXTRA}px`,
           filter: `blur(${BLUR}px)`,
         },
         children: [{
@@ -86,9 +85,11 @@ export default async function handler(req, res) {
             style: {
               display: 'flex',
               flexDirection: 'column',
-              alignItems: anchor === 'center' ? 'center' : 'flex-start',
+              alignItems: multiLine ? 'flex-start' : 'center',
               justifyContent: 'center',
               width: '100%',
+              height: '100%',
+              padding: multiLine ? `${PADDING}px` : '0',
             },
             children: lines.map((line, i) => ({
               type: 'div',
@@ -97,11 +98,11 @@ export default async function handler(req, res) {
                 style: {
                   fontSize,
                   fontWeight: 900,
-                  fontFamily: 'Arial Narrow, sans-serif',
+                  fontFamily: '"Arial Narrow"',
                   color: 'black',
                   lineHeight: LINE_HEIGHT,
                   whiteSpace: multiLine ? 'normal' : 'nowrap',
-                  textAlign: anchor === 'center' ? 'center' : 'left',
+                  textAlign: multiLine ? 'left' : 'center',
                   width: '100%',
                 },
                 children: line,
@@ -135,4 +136,4 @@ export default async function handler(req, res) {
   res.setHeader('Content-Type', 'image/png');
   res.setHeader('Cache-Control', 'public, max-age=86400');
   res.send(croppedBuffer);
-            }
+}
