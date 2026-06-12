@@ -1,9 +1,3 @@
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
@@ -19,10 +13,6 @@ export default async function handler(req, res) {
   const MAX_WIDTH = SIZE - PADDING * 2;
   const MAX_HEIGHT = SIZE - PADDING * 2;
   const BLUR = 1.8;
-
-  // Load font
-  const fontPath = join(__dirname, 'fonts', 'arialnarrow.ttf');
-  const fontB64 = readFileSync(fontPath).toString('base64');
 
   function estimateWidth(str, fs) {
     return str.length * fs * 0.48;
@@ -68,7 +58,7 @@ export default async function handler(req, res) {
       x="${textX}"
       y="${startY + i * lineHeight}"
       text-anchor="${anchor}"
-      font-family="Arial Narrow"
+      font-family="'Arial Narrow', Arial, sans-serif"
       font-weight="900"
       font-size="${fontSize}"
       fill="black"
@@ -78,13 +68,6 @@ export default async function handler(req, res) {
 
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">
     <defs>
-      <style>
-        @font-face {
-          font-family: 'Arial Narrow';
-          font-weight: 900;
-          src: url('data:font/truetype;base64,${fontB64}') format('truetype');
-        }
-      </style>
       <filter id="blur" x="-10%" y="-10%" width="120%" height="120%">
         <feGaussianBlur stdDeviation="${BLUR}"/>
       </filter>
@@ -93,16 +76,11 @@ export default async function handler(req, res) {
     ${textElements}
   </svg>`;
 
+  // Convert SVG ke PNG pake sharp (librsvg tersedia di Vercel)
   try {
-    const { Resvg } = await import('@resvg/resvg-js');
-    const resvg = new Resvg(svg, {
-      font: {
-        loadSystemFonts: false,
-        fontBuffers: [readFileSync(fontPath)],
-      },
-    });
-    const png = resvg.render().asPng();
-    const base64 = Buffer.from(png).toString('base64');
+    const sharp = (await import('sharp')).default;
+    const png = await sharp(Buffer.from(svg), { density: 150 }).png().toBuffer();
+    const base64 = png.toString('base64');
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'public, max-age=86400');
     return res.json({ status: 200, creator: 'RyodevAPI', result: `data:image/png;base64,${base64}` });
@@ -110,6 +88,6 @@ export default async function handler(req, res) {
     // Fallback SVG
     const base64 = Buffer.from(svg).toString('base64');
     res.setHeader('Content-Type', 'application/json');
-    return res.json({ status: 200, creator: 'RyodevAPI', result: `data:image/svg+xml;base64,${base64}` });
+    return res.json({ status: 200, creator: 'RyodevAPI', result: `data:image/svg+xml;base64,${base64}`, fallback: true });
   }
 }
