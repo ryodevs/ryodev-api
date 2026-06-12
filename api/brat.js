@@ -13,6 +13,8 @@ export default async function handler(req, res) {
 
   const SIZE = 500;
   const PADDING = 32;
+  const BLUR_EXTRA = 20; // ruang ekstra untuk blur
+  const CANVAS_SIZE = SIZE + BLUR_EXTRA * 2; // 540x540
   const MAX_WIDTH = SIZE - PADDING * 2;
   const MAX_HEIGHT = SIZE - PADDING * 2;
   const BLUR = 1.8;
@@ -62,13 +64,13 @@ export default async function handler(req, res) {
       type: 'div',
       props: {
         style: {
-          width: SIZE,
-          height: SIZE,
+          width: CANVAS_SIZE,
+          height: CANVAS_SIZE,
           background: 'white',
           display: 'flex',
           alignItems: 'center',
           justifyContent: anchor === 'center' ? 'center' : 'flex-start',
-          padding: multiLine ? `${PADDING}px` : '0',
+          padding: multiLine ? `${PADDING + BLUR_EXTRA}px` : `${BLUR_EXTRA}px`,
           filter: `blur(${BLUR}px)`,
         },
         children: [{
@@ -105,8 +107,8 @@ export default async function handler(req, res) {
       },
     },
     {
-      width: SIZE,
-      height: SIZE,
+      width: CANVAS_SIZE,
+      height: CANVAS_SIZE,
       fonts: [{
         name: 'Arial Narrow',
         data: fontData,
@@ -116,11 +118,17 @@ export default async function handler(req, res) {
     }
   );
 
-  // Forward response headers dan body ke res
+  // Dapatkan buffer gambar 540x540 lalu crop ke 500x500
+  const buffer = Buffer.from(await imageResponse.arrayBuffer());
+  
+  const sharp = await import('sharp');
+  const croppedBuffer = await sharp.default(buffer)
+    .extract({ left: BLUR_EXTRA, top: BLUR_EXTRA, width: SIZE, height: SIZE })
+    .png()
+    .toBuffer();
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', 'image/png');
   res.setHeader('Cache-Control', 'public, max-age=86400');
-
-  const buffer = Buffer.from(await imageResponse.arrayBuffer());
-  res.send(buffer);
+  res.send(croppedBuffer);
 }
