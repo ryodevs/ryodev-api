@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   const PADDING = 32;
   const MAX_WIDTH = SIZE - PADDING * 2;
   const MAX_HEIGHT = SIZE - PADDING * 2;
-  const BLUR = 2.4;
+  const BLUR = 1.8;
   const LINE_HEIGHT = 0.9;
 
   function estimateWidth(str, fs) {
@@ -56,14 +56,14 @@ export default async function handler(req, res) {
   }
 
   const words = text.split(' ');
-  let fontSize = 200;
+  let fontSize = 160;
   let lines = [];
 
-  while (fontSize >= 20) {
+  while (fontSize >= 16) {
     lines = wrapText(words, fontSize);
     const totalH = lines.length * fontSize * LINE_HEIGHT;
     if (totalH <= MAX_HEIGHT) break;
-    fontSize -= 5;
+    fontSize -= 4;
   }
 
   const imageResponse = new ImageResponse(
