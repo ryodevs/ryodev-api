@@ -1,10 +1,15 @@
 import { ImageResponse } from '@vercel/og';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-export const config = { runtime: 'edge' };
+// Node.js runtime (bukan edge) — bisa baca filesystem
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const fontData = readFileSync(join(__dirname, 'fonts', 'arialnarrow.ttf'));
 
-export default async function handler(req) {
-  const { searchParams } = new URL(req.url);
-  const text = (searchParams.get('text') || 'brat').toLowerCase();
+export default async function handler(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const text = (url.searchParams.get('text') || 'brat').toLowerCase();
 
   const SIZE = 500;
   const PADDING = 32;
@@ -12,12 +17,6 @@ export default async function handler(req) {
   const MAX_HEIGHT = SIZE - PADDING * 2;
   const BLUR = 2.4;
   const LINE_HEIGHT = 0.9;
-
-  // Fetch font Arial Narrow dari GitHub raw (repo backend lo)
-  const fontRes = await fetch(
-    'https://raw.githubusercontent.com/ryodevs/ryodev-api/main/api/fonts/arialnarrow.ttf'
-  );
-  const fontData = await fontRes.arrayBuffer();
 
   function estimateWidth(str, fs) {
     return str.length * fs * 0.44;
@@ -67,7 +66,7 @@ export default async function handler(req) {
     fontSize -= 5;
   }
 
-  return new ImageResponse(
+  const imageResponse = new ImageResponse(
     {
       type: 'div',
       props: {
@@ -119,4 +118,12 @@ export default async function handler(req) {
       }],
     }
   );
+
+  // Forward response headers dan body ke res
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'image/png');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+
+  const buffer = Buffer.from(await imageResponse.arrayBuffer());
+  res.send(buffer);
 }
