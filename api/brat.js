@@ -1,4 +1,7 @@
 import { ImageResponse } from '@vercel/og';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
 export const config = { runtime: 'edge' };
 
@@ -9,41 +12,60 @@ export default async function handler(req) {
   const SIZE = 500;
   const PADDING = 32;
   const MAX_WIDTH = SIZE - PADDING * 2;
+  const BLUR = 2.4;
+  const LINE_HEIGHT = 0.9;
 
-  // Estimasi font size yang pas
+  // Load font dari file
+  const fontUrl = new URL('./fonts/arialnarrow.ttf', import.meta.url);
+  const fontData = readFileSync(fileURLToPath(fontUrl));
+
   function estimateWidth(str, fs) {
-    return str.length * fs * 0.5;
+    return str.length * fs * 0.42;
   }
 
   function wrapText(words, fs) {
+    if (words.length === 1) {
+      const word = words[0];
+      if (estimateWidth(word, fs) <= MAX_WIDTH) return [word];
+      const lines = [];
+      let current = '';
+      for (const char of word) {
+        const test = current + char;
+        if (estimateWidth(test, fs) > MAX_WIDTH && current) {
+          lines.push(current);
+          current = char;
+        } else {
+          current = test;
+        }
+      }
+      if (current) lines.push(current);
+      return lines;
+    }
     const lines = [];
-    let current = '';
-    for (const word of words) {
-      const test = current ? current + ' ' + word : word;
-      if (estimateWidth(test, fs) > MAX_WIDTH && current) {
+    let current = words[0];
+    for (let i = 1; i < words.length; i++) {
+      const test = current + ' ' + words[i];
+      if (estimateWidth(test, fs) > MAX_WIDTH) {
         lines.push(current);
-        current = word;
+        current = words[i];
       } else {
         current = test;
       }
     }
-    if (current) lines.push(current);
+    lines.push(current);
     return lines;
   }
 
   const words = text.split(' ');
-  let fontSize = 150;
+  let fontSize = 200;
   let lines = [];
 
-  while (fontSize > 16) {
+  while (fontSize >= 20) {
     lines = wrapText(words, fontSize);
-    const totalH = lines.length * fontSize * 1.0;
-    const maxW = Math.max(...lines.map(l => estimateWidth(l, fontSize)));
-    if (totalH <= SIZE - PADDING * 2 && maxW <= MAX_WIDTH) break;
-    fontSize -= 4;
+    const totalH = lines.length * fontSize * LINE_HEIGHT;
+    if (totalH <= SIZE - PADDING * 2) break;
+    fontSize -= 5;
   }
-
-  const multiLine = lines.length > 1;
 
   return new ImageResponse(
     {
@@ -54,29 +76,48 @@ export default async function handler(req) {
           height: SIZE,
           background: 'white',
           display: 'flex',
-          flexDirection: 'column',
+          alignItems: 'center',
           justifyContent: 'center',
-          alignItems: multiLine ? 'flex-start' : 'center',
-          padding: multiLine ? `0 ${PADDING}px` : '0',
         },
-        children: lines.map((line, i) => ({
+        children: [{
           type: 'div',
           props: {
-            key: i,
             style: {
-              fontSize,
-              fontWeight: 900,
-              fontFamily: 'Arial',
-              color: 'black',
-              lineHeight: 1.0,
-              filter: 'blur(1.8px)',
-              letterSpacing: '-0.02em',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              padding: `0 ${PADDING}px`,
+              width: SIZE,
+              filter: `blur(${BLUR}px)`,
             },
-            children: line,
+            children: lines.map((line, i) => ({
+              type: 'div',
+              props: {
+                key: String(i),
+                style: {
+                  fontSize,
+                  fontWeight: 900,
+                  fontFamily: '"Arial Narrow"',
+                  color: 'black',
+                  lineHeight: LINE_HEIGHT,
+                  whiteSpace: 'pre',
+                },
+                children: line,
+              },
+            })),
           },
-        })),
+        }],
       },
     },
-    { width: SIZE, height: SIZE }
+    {
+      width: SIZE,
+      height: SIZE,
+      fonts: [{
+        name: 'Arial Narrow',
+        data: fontData,
+        weight: 900,
+        style: 'normal',
+      }],
+    }
   );
 }
