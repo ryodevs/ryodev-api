@@ -71,26 +71,6 @@ export default async function handler(req, res) {
   let lines = wrapText(words, fontSize);
   const multiLine = lines.length > 1;
 
-  // Fungsi untuk justify text (tambah spasi antar kata)
-  function justifyText(line, targetWidth, fs) {
-    const words = line.split(' ');
-    if (words.length <= 1) return line;
-    
-    const totalChars = line.replace(/ /g, '').length;
-    const currentWidth = estimateWidth(line, fs);
-    const gapNeeded = targetWidth - currentWidth;
-    const gapPerSpace = gapNeeded / (words.length - 1);
-    const spaceWidth = estimateWidth(' ', fs);
-    const spacesToAdd = Math.round(gapPerSpace / spaceWidth);
-    
-    // Bangun line dengan spasi tambahan
-    let justified = words[0];
-    for (let i = 1; i < words.length; i++) {
-      justified += ' '.repeat(Math.max(1, spacesToAdd)) + words[i];
-    }
-    return justified;
-  }
-
   const imageResponse = new ImageResponse(
     {
       type: 'div',
@@ -100,8 +80,8 @@ export default async function handler(req, res) {
           height: CANVAS_SIZE,
           background: bgColorHex,
           display: 'flex',
-          alignItems: multiLine ? 'flex-start' : 'center',
-          justifyContent: multiLine ? 'flex-start' : 'center',
+          alignItems: 'center',
+          justifyContent: 'center',
           padding: `${BLUR_EXTRA}px`,
           filter: `blur(${BLUR}px)`,
         },
@@ -111,7 +91,7 @@ export default async function handler(req, res) {
             style: {
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'flex-start',
+              alignItems: 'center',
               justifyContent: 'center',
               width: '100%',
               height: '100%',
@@ -131,7 +111,7 @@ export default async function handler(req, res) {
                   textAlign: multiLine ? 'justify' : 'center',
                   width: '100%',
                 },
-                children: multiLine ? justifyText(line, MAX_WIDTH, fontSize) : line,
+                children: line,
               },
             })),
           },
