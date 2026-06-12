@@ -12,16 +12,14 @@ export default async function handler(req) {
   const MAX_HEIGHT = SIZE - PADDING * 2;
   const BLUR = 2.4;
   const LINE_HEIGHT = 0.9;
-  const BASE_FONT_SIZE = 200;
 
-  // Fetch Archivo Narrow 700 dari Google Fonts
+  // Fetch font Arial Narrow dari GitHub raw (repo backend lo)
   const fontRes = await fetch(
-    'https://fonts.gstatic.com/s/archivonarro/v21/F8pz7_2DqB-DVCdBTFJmPWFNBJgBpKPMbg.woff2'
+    'https://raw.githubusercontent.com/ryodevs/ryodev-api/main/api/fonts/arialnarrow.ttf'
   );
   const fontData = await fontRes.arrayBuffer();
 
   function estimateWidth(str, fs) {
-    // Archivo Narrow ~0.44 per char
     return str.length * fs * 0.44;
   }
 
@@ -59,7 +57,7 @@ export default async function handler(req) {
   }
 
   const words = text.split(' ');
-  let fontSize = BASE_FONT_SIZE;
+  let fontSize = 200;
   let lines = [];
 
   while (fontSize >= 20) {
@@ -98,7 +96,7 @@ export default async function handler(req) {
                 style: {
                   fontSize,
                   fontWeight: 200,
-                  fontFamily: '"Archivo Narrow"',
+                  fontFamily: '"Arial Narrow"',
                   color: 'black',
                   lineHeight: LINE_HEIGHT,
                   whiteSpace: 'pre',
@@ -114,7 +112,7 @@ export default async function handler(req) {
       width: SIZE,
       height: SIZE,
       fonts: [{
-        name: 'Archivo Narrow',
+        name: 'Arial Narrow',
         data: fontData,
         weight: 200,
         style: 'normal',
