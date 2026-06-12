@@ -55,7 +55,7 @@ export default async function handler(req, res) {
     return lines;
   }
 
-  const words = text.split(' ');
+  const words = escaped.split(' ');
   let fontSize = 160;
   let lines = [];
 
