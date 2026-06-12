@@ -196,7 +196,7 @@ async function initToken() {
   return json.access_token;
 }
 
-async function processRemini(imageUrl) {
+async function processRemini(imgBuffer) {
   const token = await initToken();
   const authHeaders = {
     "accept": "*/*",
@@ -207,10 +207,6 @@ async function processRemini(imageUrl) {
     "referer": "https://app.remini.ai/",
     "user-agent": getUserAgent()
   };
-
-  // Fetch image
-  const imgRes = await fetch(imageUrl);
-  const imgBuffer = Buffer.from(await imgRes.arrayBuffer());
 
   // Upload task
   const uploadRes = await fetch(BASE_URL + URL_BULK, {
@@ -344,7 +340,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const result = await processRemini(url);
+    const result = await processRemini(imageBuffer);
     if (!result) {
       return res.status(500).json({ status: 500, creator: 'RyodevAPI', error: 'Processing failed or timed out' });
     }
