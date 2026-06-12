@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   
 
   function estimateWidth(str, fs) {
-    return str.length * fs * 0.44;
+    return str.length * fs * 0.48;
   }
 
   function wrapText(words, fs) {
