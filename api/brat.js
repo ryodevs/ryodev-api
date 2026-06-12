@@ -9,6 +9,11 @@ const fontData = readFileSync(join(__dirname, 'fonts', 'arialnarrow.ttf'));
 export default async function handler(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const text = (url.searchParams.get('text') || 'brat').toLowerCase();
+  const bgColorParam = url.searchParams.get('bgcolor') || 'white';
+  
+  let bgColorHex = '#FFFFFF';
+  if (bgColorParam === 'pink') bgColorHex = '#FDB9E9';
+  if (bgColorParam === 'green') bgColorHex = '#8ACE00';
 
   const SIZE = 500;
   const PADDING = 32;
@@ -63,12 +68,7 @@ export default async function handler(req, res) {
   const words = text.split(' ');
   let fontSize = findBestFontSize(words, 16, 160);
   let lines = wrapText(words, fontSize);
-  
-  // Deteksi multiLine: cuma dianggap multiLine kalo lebih dari 1 line ATAU lebar melebihi MAX_WIDTH
-  const maxLineWidth = Math.max(...lines.map(l => estimateWidth(l, fontSize)));
-  const isMultiLine = lines.length > 1 || maxLineWidth > MAX_WIDTH * 0.95;
-  
-  // TAPI untuk teks pendek "beata", lines.length = 1, maxLineWidth kecil -> isMultiLine = false
+  const multiLine = lines.length > 1;
 
   const imageResponse = new ImageResponse(
     {
@@ -77,7 +77,7 @@ export default async function handler(req, res) {
         style: {
           width: CANVAS_SIZE,
           height: CANVAS_SIZE,
-          background: 'white',
+          background: bgColorHex,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -90,10 +90,11 @@ export default async function handler(req, res) {
             style: {
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center',
+              alignItems: multiLine ? 'flex-start' : 'center',
               justifyContent: 'center',
               width: '100%',
               height: '100%',
+              padding: multiLine ? `${PADDING}px` : '0',
             },
             children: lines.map((line, i) => ({
               type: 'div',
@@ -105,8 +106,9 @@ export default async function handler(req, res) {
                   fontFamily: '"Arial Narrow"',
                   color: 'black',
                   lineHeight: LINE_HEIGHT,
-                  whiteSpace: 'nowrap',
-                  textAlign: 'center',
+                  whiteSpace: multiLine ? 'normal' : 'nowrap',
+                  textAlign: multiLine ? 'left' : 'center',
+                  width: '100%',
                 },
                 children: line,
               },
