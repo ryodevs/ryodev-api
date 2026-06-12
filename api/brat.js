@@ -3,7 +3,6 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-// Node.js runtime (bukan edge) — bisa baca filesystem
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const fontData = readFileSync(join(__dirname, 'fonts', 'arialnarrow.ttf'));
 
@@ -13,15 +12,38 @@ export default async function handler(req, res) {
 
   const SIZE = 500;
   const PADDING = 32;
-  const BLUR_EXTRA = 20; // ruang ekstra untuk blur
-  const CANVAS_SIZE = SIZE + BLUR_EXTRA * 2; // 540x540
+  const BLUR_EXTRA = 20;
+  const CANVAS_SIZE = SIZE + BLUR_EXTRA * 2;
   const MAX_WIDTH = SIZE - PADDING * 2;
   const MAX_HEIGHT = SIZE - PADDING * 2;
   const BLUR = 1.8;
   const LINE_HEIGHT = 0.92;
 
+  // Estimasi lebar teks (mirip dengan getComputedStyle di browser)
   function estimateWidth(str, fs) {
     return str.length * fs * 0.48;
+  }
+
+  // Binary search untuk fontSize terbaik (sama kaya textFit)
+  function findBestFontSize(words, minFs, maxFs) {
+    let low = minFs;
+    let high = maxFs;
+    let bestSize = minFs;
+    
+    while (low <= high) {
+      const mid = Math.floor((high + low) / 2);
+      const lines = wrapText(words, mid);
+      const maxLineWidth = Math.max(...lines.map(l => estimateWidth(l, mid)));
+      const totalHeight = lines.length * mid * LINE_HEIGHT;
+      
+      if (maxLineWidth <= MAX_WIDTH && totalHeight <= MAX_HEIGHT) {
+        bestSize = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return bestSize;
   }
 
   function wrapText(words, fs) {
@@ -41,22 +63,15 @@ export default async function handler(req, res) {
   }
 
   const words = text.split(' ');
-  let fontSize = 160;
-  let lines = [];
-
-  while (fontSize > 16) {
-    lines = wrapText(words, fontSize);
-    const totalH = lines.length * fontSize * LINE_HEIGHT;
-    const maxW = Math.max(...lines.map(l => estimateWidth(l, fontSize)));
-    if (totalH <= MAX_HEIGHT && maxW <= MAX_WIDTH) break;
-    fontSize -= 4;
-  }
-
-  const multiLine = lines.length > 1;
-  const lineHeight = fontSize * LINE_HEIGHT;
-  const totalTextH = lines.length * lineHeight;
-  const startY = SIZE / 2 - totalTextH / 2 + lineHeight * 0.85;
-  const textX = multiLine ? PADDING : SIZE / 2;
+  
+  // Gunakan binary search seperti textFit
+  let fontSize = findBestFontSize(words, 16, 160);
+  let lines = wrapText(words, fontSize);
+  
+  // Deteksi multiLine (sama seperti textFit)
+  const singleLineHeight = fontSize; // perkiraan
+  const multiLine = lines.length > 1 || (lines.length === 1 && estimateWidth(lines[0], fontSize) > MAX_WIDTH * 0.8);
+  
   const anchor = multiLine ? 'flex-start' : 'center';
 
   const imageResponse = new ImageResponse(
@@ -82,8 +97,6 @@ export default async function handler(req, res) {
               alignItems: anchor === 'center' ? 'center' : 'flex-start',
               justifyContent: 'center',
               width: '100%',
-              marginTop: multiLine ? '0' : 'auto',
-              marginBottom: multiLine ? '0' : 'auto',
             },
             children: lines.map((line, i) => ({
               type: 'div',
@@ -95,9 +108,9 @@ export default async function handler(req, res) {
                   fontFamily: '"Arial Narrow"',
                   color: 'black',
                   lineHeight: LINE_HEIGHT,
-                  whiteSpace: 'pre',
+                  whiteSpace: multiLine ? 'normal' : 'nowrap',
                   textAlign: anchor === 'center' ? 'center' : 'left',
-                  width: anchor === 'center' ? 'auto' : '100%',
+                  width: '100%',
                 },
                 children: line,
               },
@@ -118,7 +131,6 @@ export default async function handler(req, res) {
     }
   );
 
-  // Dapatkan buffer gambar 540x540 lalu crop ke 500x500
   const buffer = Buffer.from(await imageResponse.arrayBuffer());
   
   const sharp = await import('sharp');
