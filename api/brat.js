@@ -11,8 +11,7 @@ export default async function handler(req, res) {
   const text = (url.searchParams.get('text') || 'brat').toLowerCase();
   const bgColorParam = url.searchParams.get('bgcolor') || 'white';
   
-  // Mapping background color
-  let bgColorHex = '#FFFFFF'; // white default
+  let bgColorHex = '#FFFFFF';
   if (bgColorParam === 'pink') bgColorHex = '#FDB9E9';
   if (bgColorParam === 'green') bgColorHex = '#8ACE00';
 
@@ -110,6 +109,8 @@ export default async function handler(req, res) {
                   whiteSpace: multiLine ? 'normal' : 'nowrap',
                   textAlign: multiLine ? 'justify' : 'center',
                   width: '100%',
+                  // Tambahan untuk justify yang lebih baik
+                  textJustify: multiLine ? 'inter-word' : 'auto',
                 },
                 children: line,
               },
