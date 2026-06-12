@@ -10,22 +10,14 @@ export default async function handler(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
   const text = (url.searchParams.get('text') || 'brat').toLowerCase();
 
-  // Sesuai dengan App.js: size 600, padding 32 (2rem = 32px)
-  const SIZE = 600;
+  const SIZE = 500;
   const PADDING = 32;
-  const BLUR_EXTRA = 24; // ruang ekstra untuk blur biar gak kepotong
+  const BLUR_EXTRA = 20;
   const CANVAS_SIZE = SIZE + BLUR_EXTRA * 2;
   const MAX_WIDTH = SIZE - PADDING * 2;
   const MAX_HEIGHT = SIZE - PADDING * 2;
-  const LINE_HEIGHT = 0.9; // sesuai App.js lineHeight: "0.9"
-  
-  // Fried level default 80% -> blur = (80/100)*3 = 2.4px
-  // Tapi biar fleksibel, bisa dari query param
-  const friedLevel = parseInt(url.searchParams.get('fried') || '80');
-  const BLUR = (friedLevel / 100) * 3;
-
-  // Font family sama persis dengan App.js
-  const FONT_FAMILY = '"Archivo Narrow", Arial, sans-serif';
+  const BLUR = 1.8;
+  const LINE_HEIGHT = 0.92;
 
   function estimateWidth(str, fs) {
     return str.length * fs * 0.48;
@@ -54,33 +46,12 @@ export default async function handler(req, res) {
 
   function wrapText(words, fs) {
     const lines = [];
-    
-    // Handle single word (character by character wrapping)
-    if (words.length === 1) {
-      const word = words[0];
-      if (estimateWidth(word, fs) <= MAX_WIDTH) return [word];
-      
-      let current = '';
-      for (const char of word) {
-        const test = current + char;
-        if (estimateWidth(test, fs) > MAX_WIDTH && current) {
-          lines.push(current);
-          current = char;
-        } else {
-          current = test;
-        }
-      }
-      if (current) lines.push(current);
-      return lines;
-    }
-    
-    // Handle multiple words
-    let current = words[0];
-    for (let i = 1; i < words.length; i++) {
-      const test = current + ' ' + words[i];
+    let current = '';
+    for (const word of words) {
+      const test = current ? current + ' ' + word : word;
       if (estimateWidth(test, fs) > MAX_WIDTH && current) {
         lines.push(current);
-        current = words[i];
+        current = word;
       } else {
         current = test;
       }
@@ -90,12 +61,10 @@ export default async function handler(req, res) {
   }
 
   const words = text.split(' ');
-  let fontSize = findBestFontSize(words, 20, 200); // min 20, max 200 (sesuai App.js)
+  let fontSize = findBestFontSize(words, 16, 160);
   let lines = wrapText(words, fontSize);
-  
   const multiLine = lines.length > 1;
-  // Posisi: top: 32px, left: 32px (sesuai App.js: top: 2rem, left: 2rem)
-  const anchor = 'flex-start'; // selalu kiri atas seperti App.js
+  const anchor = multiLine ? 'flex-start' : 'center';
 
   const imageResponse = new ImageResponse(
     {
@@ -106,9 +75,9 @@ export default async function handler(req, res) {
           height: CANVAS_SIZE,
           background: 'white',
           display: 'flex',
-          alignItems: 'flex-start', // top alignment
-          justifyContent: 'flex-start', // left alignment
-          padding: `${BLUR_EXTRA}px`,
+          alignItems: 'center',
+          justifyContent: anchor === 'center' ? 'center' : 'flex-start',
+          padding: multiLine ? `${PADDING + BLUR_EXTRA}px` : `${BLUR_EXTRA}px`,
           filter: `blur(${BLUR}px)`,
         },
         children: [{
@@ -117,11 +86,9 @@ export default async function handler(req, res) {
             style: {
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'flex-start',
-              justifyContent: 'flex-start',
+              alignItems: anchor === 'center' ? 'center' : 'flex-start',
+              justifyContent: 'center',
               width: '100%',
-              paddingTop: `${PADDING}px`,
-              paddingLeft: `${PADDING}px`,
             },
             children: lines.map((line, i) => ({
               type: 'div',
@@ -130,11 +97,11 @@ export default async function handler(req, res) {
                 style: {
                   fontSize,
                   fontWeight: 900,
-                  fontFamily: FONT_FAMILY,
+                  fontFamily: 'Arial Narrow, sans-serif',
                   color: 'black',
                   lineHeight: LINE_HEIGHT,
-                  whiteSpace: 'pre',
-                  textAlign: 'left',
+                  whiteSpace: multiLine ? 'normal' : 'nowrap',
+                  textAlign: anchor === 'center' ? 'center' : 'left',
                   width: '100%',
                 },
                 children: line,
@@ -148,7 +115,7 @@ export default async function handler(req, res) {
       width: CANVAS_SIZE,
       height: CANVAS_SIZE,
       fonts: [{
-        name: 'Archivo Narrow',
+        name: 'Arial Narrow',
         data: fontData,
         weight: 900,
         style: 'normal',
@@ -168,4 +135,4 @@ export default async function handler(req, res) {
   res.setHeader('Content-Type', 'image/png');
   res.setHeader('Cache-Control', 'public, max-age=86400');
   res.send(croppedBuffer);
-    }
+            }
