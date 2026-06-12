@@ -3,8 +3,7 @@
     { "source": "/api/(.*)", "destination": "/api/$1" }
   ],
   "functions": {
-    "api/remini.js": {
-      "maxDuration": 60
-    }
+    "api/remini.js": { "maxDuration": 120 },
+    "api/summarize.js": { "maxDuration": 30 }
   }
 }
