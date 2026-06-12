@@ -1,7 +1,4 @@
 import { ImageResponse } from '@vercel/og';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 
 export const config = { runtime: 'edge' };
 
@@ -12,15 +9,20 @@ export default async function handler(req) {
   const SIZE = 500;
   const PADDING = 32;
   const MAX_WIDTH = SIZE - PADDING * 2;
+  const MAX_HEIGHT = SIZE - PADDING * 2;
   const BLUR = 2.4;
   const LINE_HEIGHT = 0.9;
+  const BASE_FONT_SIZE = 200;
 
-  // Load font dari file
-  const fontUrl = new URL('./fonts/arialnarrow.ttf', import.meta.url);
-  const fontData = readFileSync(fileURLToPath(fontUrl));
+  // Fetch Archivo Narrow 700 dari Google Fonts
+  const fontRes = await fetch(
+    'https://fonts.gstatic.com/s/archivonarro/v21/F8pz7_2DqB-DVCdBTFJmPWFNBJgBpKPMbg.woff2'
+  );
+  const fontData = await fontRes.arrayBuffer();
 
   function estimateWidth(str, fs) {
-    return str.length * fs * 0.42;
+    // Archivo Narrow ~0.44 per char
+    return str.length * fs * 0.44;
   }
 
   function wrapText(words, fs) {
@@ -57,13 +59,13 @@ export default async function handler(req) {
   }
 
   const words = text.split(' ');
-  let fontSize = 200;
+  let fontSize = BASE_FONT_SIZE;
   let lines = [];
 
   while (fontSize >= 20) {
     lines = wrapText(words, fontSize);
     const totalH = lines.length * fontSize * LINE_HEIGHT;
-    if (totalH <= SIZE - PADDING * 2) break;
+    if (totalH <= MAX_HEIGHT) break;
     fontSize -= 5;
   }
 
@@ -76,8 +78,10 @@ export default async function handler(req) {
           height: SIZE,
           background: 'white',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: 'flex-start',
+          justifyContent: 'flex-start',
+          padding: `${PADDING}px`,
+          filter: `blur(${BLUR}px)`,
         },
         children: [{
           type: 'div',
@@ -86,9 +90,6 @@ export default async function handler(req) {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'flex-start',
-              padding: `0 ${PADDING}px`,
-              width: SIZE,
-              filter: `blur(${BLUR}px)`,
             },
             children: lines.map((line, i) => ({
               type: 'div',
@@ -96,8 +97,8 @@ export default async function handler(req) {
                 key: String(i),
                 style: {
                   fontSize,
-                  fontWeight: 900,
-                  fontFamily: '"Arial Narrow"',
+                  fontWeight: 200,
+                  fontFamily: '"Archivo Narrow"',
                   color: 'black',
                   lineHeight: LINE_HEIGHT,
                   whiteSpace: 'pre',
@@ -113,9 +114,9 @@ export default async function handler(req) {
       width: SIZE,
       height: SIZE,
       fonts: [{
-        name: 'Arial Narrow',
+        name: 'Archivo Narrow',
         data: fontData,
-        weight: 900,
+        weight: 200,
         style: 'normal',
       }],
     }
