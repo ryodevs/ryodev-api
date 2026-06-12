@@ -36,11 +36,9 @@ const BULK_PAYLOAD = (settings) => ({
 const DEFAULT_SETTINGS = {
   face_enhance: { model: "remini" },
   background_enhance: { model: "rhino-tensorrt" },
-  bokeh: {
-    aperture_radius: "0", highlights: "0.20", vivid: "0.75",
-    group_picture: "true", rescale_kernel_for_small_images: "true", apply_front_bokeh: "false"
-  },
-  jpeg_quality: 90
+  unblur: { model: "remini" },
+  denoise: { model: "remini" },
+  jpeg_quality: 100
 };
 
 let k = [2277735313, 289559509];
@@ -366,9 +364,18 @@ export default async function handler(req, res) {
       return res.status(500).json({ status: 500, creator: 'RyodevAPI', error: 'Processing failed or timed out' });
     }
 
+    // Enhance sekali lagi untuk hasil maksimal
+    let finalResult = result;
+    try {
+      const imgRes2 = await fetch(result, { headers: { 'User-Agent': getUserAgent(), 'Referer': 'https://app.remini.ai/' }, redirect: 'follow' });
+      const buf2 = Buffer.from(await imgRes2.arrayBuffer());
+      const result2 = await processRemini(buf2);
+      if (result2) finalResult = result2;
+    } catch (_) {}
+
     // Proxy gambar hasilnya
     try {
-      const imgRes = await fetch(result, {
+      const imgRes = await fetch(finalResult, {
         headers: { 'User-Agent': getUserAgent(), 'Referer': 'https://app.remini.ai/' },
         redirect: 'follow',
       });
@@ -380,7 +387,7 @@ export default async function handler(req, res) {
       }
     } catch (_) {}
 
-    return res.status(200).json({ status: 200, creator: 'RyodevAPI', result });
+    return res.status(200).json({ status: 200, creator: 'RyodevAPI', result: finalResult });
   } catch (err) {
     return res.status(500).json({ status: 500, creator: 'RyodevAPI', error: err.message });
   }
