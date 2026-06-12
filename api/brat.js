@@ -90,7 +90,7 @@ export default async function handler(req, res) {
             style: {
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center',
+              alignItems: multiLine ? 'flex-start' : 'center',
               justifyContent: 'center',
               width: '100%',
               height: '100%',
@@ -107,10 +107,8 @@ export default async function handler(req, res) {
                   color: 'black',
                   lineHeight: LINE_HEIGHT,
                   whiteSpace: multiLine ? 'normal' : 'nowrap',
-                  textAlign: multiLine ? 'justify' : 'center',
+                  textAlign: multiLine ? 'left' : 'center',
                   width: '100%',
-                  // Tambahan untuk justify yang lebih baik
-                  textJustify: multiLine ? 'inter-word' : 'auto',
                 },
                 children: line,
               },
