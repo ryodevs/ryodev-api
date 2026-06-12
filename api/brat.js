@@ -23,35 +23,18 @@ export default async function handler(req, res) {
   }
 
   function wrapText(words, fs) {
-    if (words.length === 1) {
-      const word = words[0];
-      if (estimateWidth(word, fs) <= MAX_WIDTH) return [word];
-      const lines = [];
-      let current = '';
-      for (const char of word) {
-        const test = current + char;
-        if (estimateWidth(test, fs) > MAX_WIDTH && current) {
-          lines.push(current);
-          current = char;
-        } else {
-          current = test;
-        }
-      }
-      if (current) lines.push(current);
-      return lines;
-    }
     const lines = [];
-    let current = words[0];
-    for (let i = 1; i < words.length; i++) {
-      const test = current + ' ' + words[i];
-      if (estimateWidth(test, fs) > MAX_WIDTH) {
+    let current = '';
+    for (const word of words) {
+      const test = current ? current + ' ' + word : word;
+      if (estimateWidth(test, fs) > MAX_WIDTH && current) {
         lines.push(current);
-        current = words[i];
+        current = word;
       } else {
         current = test;
       }
     }
-    lines.push(current);
+    if (current) lines.push(current);
     return lines;
   }
 
@@ -59,12 +42,20 @@ export default async function handler(req, res) {
   let fontSize = 160;
   let lines = [];
 
-  while (fontSize >= 16) {
+  while (fontSize > 16) {
     lines = wrapText(words, fontSize);
     const totalH = lines.length * fontSize * LINE_HEIGHT;
-    if (totalH <= MAX_HEIGHT) break;
+    const maxW = Math.max(...lines.map(l => estimateWidth(l, fontSize)));
+    if (totalH <= MAX_HEIGHT && maxW <= MAX_WIDTH) break;
     fontSize -= 4;
   }
+
+  const multiLine = lines.length > 1;
+  const lineHeight = fontSize * LINE_HEIGHT;
+  const totalTextH = lines.length * lineHeight;
+  const startY = SIZE / 2 - totalTextH / 2 + lineHeight * 0.85;
+  const textX = multiLine ? PADDING : SIZE / 2;
+  const anchor = multiLine ? 'flex-start' : 'center';
 
   const imageResponse = new ImageResponse(
     {
@@ -75,9 +66,9 @@ export default async function handler(req, res) {
           height: SIZE,
           background: 'white',
           display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'flex-start',
-          padding: `${PADDING}px`,
+          alignItems: 'center',
+          justifyContent: anchor === 'center' ? 'center' : 'flex-start',
+          padding: multiLine ? `${PADDING}px` : '0',
           filter: `blur(${BLUR}px)`,
         },
         children: [{
@@ -86,7 +77,11 @@ export default async function handler(req, res) {
             style: {
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'flex-start',
+              alignItems: anchor === 'center' ? 'center' : 'flex-start',
+              justifyContent: 'center',
+              width: '100%',
+              marginTop: multiLine ? '0' : 'auto',
+              marginBottom: multiLine ? '0' : 'auto',
             },
             children: lines.map((line, i) => ({
               type: 'div',
@@ -94,11 +89,13 @@ export default async function handler(req, res) {
                 key: String(i),
                 style: {
                   fontSize,
-                  fontWeight: 200,
+                  fontWeight: 900,
                   fontFamily: '"Arial Narrow"',
                   color: 'black',
                   lineHeight: LINE_HEIGHT,
                   whiteSpace: 'pre',
+                  textAlign: anchor === 'center' ? 'center' : 'left',
+                  width: anchor === 'center' ? 'auto' : '100%',
                 },
                 children: line,
               },
@@ -113,7 +110,7 @@ export default async function handler(req, res) {
       fonts: [{
         name: 'Arial Narrow',
         data: fontData,
-        weight: 200,
+        weight: 900,
         style: 'normal',
       }],
     }
