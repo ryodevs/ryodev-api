@@ -56,14 +56,14 @@ export default async function handler(req, res) {
   }
 
   const words = text.split(' ');
-  let fontSize = 200;
+  let fontSize = 160;
   let lines = [];
 
-  while (fontSize >= 20) {
+  while (fontSize >= 16) {
     lines = wrapText(words, fontSize);
-    const totalH = lines.length * fontSize * LINE_HEIGHT;
+    const totalH = lines.length * fontSize * 0.92;
     if (totalH <= MAX_HEIGHT) break;
-    fontSize -= 5;
+    fontSize -= 4;
   }
 
   const imageResponse = new ImageResponse(
