@@ -1,20 +1,18 @@
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
+import { ImageResponse } from '@vercel/og';
 
-  const text = (req.query.text || 'brat').toLowerCase();
-  const escaped = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+export const config = { runtime: 'edge' };
+
+export default async function handler(req) {
+  const { searchParams } = new URL(req.url);
+  const text = (searchParams.get('text') || 'brat').toLowerCase();
 
   const SIZE = 500;
   const PADDING = 32;
   const MAX_WIDTH = SIZE - PADDING * 2;
-  const BLUR = 1.8;
 
+  // Estimasi font size yang pas
   function estimateWidth(str, fs) {
-    return str.length * fs * 0.48;
+    return str.length * fs * 0.5;
   }
 
   function wrapText(words, fs) {
@@ -33,50 +31,52 @@ export default async function handler(req, res) {
     return lines;
   }
 
-  const words = escaped.split(' ');
-  let fontSize = 160;
+  const words = text.split(' ');
+  let fontSize = 150;
   let lines = [];
 
   while (fontSize > 16) {
     lines = wrapText(words, fontSize);
-    const totalH = lines.length * fontSize * 0.92;
+    const totalH = lines.length * fontSize * 1.0;
     const maxW = Math.max(...lines.map(l => estimateWidth(l, fontSize)));
     if (totalH <= SIZE - PADDING * 2 && maxW <= MAX_WIDTH) break;
     fontSize -= 4;
   }
 
   const multiLine = lines.length > 1;
-  const lineHeight = fontSize * 0.92;
-  const totalTextH = lines.length * lineHeight;
-  const startY = SIZE / 2 - totalTextH / 2 + lineHeight * 0.85;
-  const textX = multiLine ? PADDING : SIZE / 2;
-  const anchor = multiLine ? 'start' : 'middle';
 
-  const textElements = lines.map((line, i) => `
-    <text
-      x="${textX}"
-      y="${startY + i * lineHeight}"
-      text-anchor="${anchor}"
-      font-family="'Arial Narrow', Arial, sans-serif"
-      font-weight="900"
-      font-size="${fontSize}"
-      fill="black"
-      filter="url(#blur)"
-    >${line}</text>
-  `).join('');
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">
-    <defs>
-      <filter id="blur" x="-10%" y="-10%" width="120%" height="120%">
-        <feGaussianBlur stdDeviation="${BLUR}"/>
-      </filter>
-    </defs>
-    <rect width="${SIZE}" height="${SIZE}" fill="white"/>
-    ${textElements}
-  </svg>`;
-
-  const base64 = Buffer.from(svg).toString('base64');
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Cache-Control', 'public, max-age=86400');
-  res.json({ status: 200, creator: 'RyodevAPI', result: `data:image/svg+xml;base64,${base64}` });
+  return new ImageResponse(
+    {
+      type: 'div',
+      props: {
+        style: {
+          width: SIZE,
+          height: SIZE,
+          background: 'white',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: multiLine ? 'flex-start' : 'center',
+          padding: multiLine ? `0 ${PADDING}px` : '0',
+        },
+        children: lines.map((line, i) => ({
+          type: 'div',
+          props: {
+            key: i,
+            style: {
+              fontSize,
+              fontWeight: 900,
+              fontFamily: 'Arial',
+              color: 'black',
+              lineHeight: 1.0,
+              filter: 'blur(1.8px)',
+              letterSpacing: '-0.02em',
+            },
+            children: line,
+          },
+        })),
+      },
+    },
+    { width: SIZE, height: SIZE }
+  );
 }
