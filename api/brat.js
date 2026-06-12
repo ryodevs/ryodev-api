@@ -1,98 +1,82 @@
-import { createCanvas, registerFont } from 'canvas';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-// Register Arial Narrow font
-try {
-  registerFont(join(__dirname, 'fonts', 'arialnarrow.ttf'), {
-    family: 'Arial Narrow',
-    weight: '900',
-  });
-} catch (_) {}
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
   const text = (req.query.text || 'brat').toLowerCase();
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 
   const SIZE = 500;
   const PADDING = 32;
   const MAX_WIDTH = SIZE - PADDING * 2;
-  const BLUR = 2;
+  const BLUR = 1.8;
 
-  // Buat canvas sementara buat ukur teks
-  const measureCanvas = createCanvas(SIZE, SIZE);
-  const mCtx = measureCanvas.getContext('2d');
+  function estimateWidth(str, fs) {
+    return str.length * fs * 0.48;
+  }
 
-  // Cari fontSize yang pas
-  let fontSize = 160;
-  let lines = [];
-
-  function getLines(ctx, words, fs) {
-    ctx.font = `900 ${fs}px "Arial Narrow", Arial, sans-serif`;
-    const result = [];
+  function wrapText(words, fs) {
+    const lines = [];
     let current = '';
     for (const word of words) {
       const test = current ? current + ' ' + word : word;
-      if (ctx.measureText(test).width > MAX_WIDTH && current) {
-        result.push(current);
+      if (estimateWidth(test, fs) > MAX_WIDTH && current) {
+        lines.push(current);
         current = word;
       } else {
         current = test;
       }
     }
-    if (current) result.push(current);
-    return result;
+    if (current) lines.push(current);
+    return lines;
   }
 
-  const words = text.split(' ');
+  const words = escaped.split(' ');
+  let fontSize = 160;
+  let lines = [];
+
   while (fontSize > 16) {
-    lines = getLines(mCtx, words, fontSize);
-    const lineH = fontSize * 0.95;
-    const totalH = lines.length * lineH;
-    if (totalH <= SIZE - PADDING * 2) break;
+    lines = wrapText(words, fontSize);
+    const totalH = lines.length * fontSize * 0.92;
+    const maxW = Math.max(...lines.map(l => estimateWidth(l, fontSize)));
+    if (totalH <= SIZE - PADDING * 2 && maxW <= MAX_WIDTH) break;
     fontSize -= 4;
   }
 
-  // Render ke canvas
-  const canvas = createCanvas(SIZE, SIZE);
-  const ctx = canvas.getContext('2d');
-
-  // Background putih
-  ctx.fillStyle = 'white';
-  ctx.fillRect(0, 0, SIZE, SIZE);
-
-  // Setup teks
-  ctx.font = `900 ${fontSize}px "Arial Narrow", Arial, sans-serif`;
-  ctx.fillStyle = 'black';
-
-  const lineHeight = fontSize * 0.95;
-  const totalH = lines.length * lineHeight;
-  const startY = SIZE / 2 - totalH / 2 + fontSize * 0.8;
   const multiLine = lines.length > 1;
+  const lineHeight = fontSize * 0.92;
+  const totalTextH = lines.length * lineHeight;
+  const startY = SIZE / 2 - totalTextH / 2 + lineHeight * 0.85;
+  const textX = multiLine ? PADDING : SIZE / 2;
+  const anchor = multiLine ? 'start' : 'middle';
 
-  // Blur effect
-  ctx.filter = `blur(${BLUR}px)`;
+  const textElements = lines.map((line, i) => `
+    <text
+      x="${textX}"
+      y="${startY + i * lineHeight}"
+      text-anchor="${anchor}"
+      font-family="'Arial Narrow', Arial, sans-serif"
+      font-weight="900"
+      font-size="${fontSize}"
+      fill="black"
+      filter="url(#blur)"
+    >${line}</text>
+  `).join('');
 
-  lines.forEach((line, i) => {
-    if (multiLine) {
-      ctx.textAlign = 'left';
-      ctx.fillText(line, PADDING, startY + i * lineHeight);
-    } else {
-      ctx.textAlign = 'center';
-      ctx.fillText(line, SIZE / 2, startY + i * lineHeight);
-    }
-  });
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}">
+    <defs>
+      <filter id="blur" x="-10%" y="-10%" width="120%" height="120%">
+        <feGaussianBlur stdDeviation="${BLUR}"/>
+      </filter>
+    </defs>
+    <rect width="${SIZE}" height="${SIZE}" fill="white"/>
+    ${textElements}
+  </svg>`;
 
-  // Convert ke PNG
-  const png = canvas.toBuffer('image/png');
-  const base64 = png.toString('base64');
-
+  const base64 = Buffer.from(svg).toString('base64');
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Cache-Control', 'public, max-age=86400');
-  return res.json({ status: 200, creator: 'RyodevAPI', result: `data:image/png;base64,${base64}` });
+  res.json({ status: 200, creator: 'RyodevAPI', result: `data:image/svg+xml;base64,${base64}` });
 }
